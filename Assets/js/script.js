@@ -277,7 +277,6 @@ function desenharResultados(results) {
     const label = document.createElement('div');
     label.className = 'resultado-label';
     label.textContent = `${i+1}. ${r.className || r.class} `;
-    // badge confiança
     const pct = (r.probability || r.score || 0) * 100;
     const badge = document.createElement('span');
     badge.className = 'confidence-badge ' + (pct > 75 ? 'confidence-high' : (pct > 40 ? 'confidence-medium' : 'confidence-low'));
@@ -361,42 +360,40 @@ function limparHistorico() {
 
 
 function toggleTheme() {
-  const isDarkMode = document.body.classList.toggle('dark-mode');
-  
-  
+  const isLight = document.body.classList.toggle('light');
   const iconMoon = document.getElementById('theme-icon-moon');
-  const iconSun = document.getElementById('theme-icon-sun');
+  const iconSun  = document.getElementById('theme-icon-sun');
 
-  
-  if (isDarkMode) {
-    iconMoon.classList.remove('hidden');
-    iconSun.classList.add('hidden');
-    els.themeToggle.title = 'Alternar para tema claro';
-  } else {
+  if (isLight) {
     iconMoon.classList.add('hidden');
     iconSun.classList.remove('hidden');
     els.themeToggle.title = 'Alternar para tema escuro';
+  } else {
+    iconMoon.classList.remove('hidden');
+    iconSun.classList.add('hidden');
+    els.themeToggle.title = 'Alternar para tema claro';
   }
 }
 
 function checkInitialTheme() {
-    const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (isDarkMode) {
-        document.body.classList.add('dark-mode');
-    }
-    
-    const iconMoon = document.getElementById('theme-icon-moon');
-    const iconSun = document.getElementById('theme-icon-sun');
-    
-    if (document.body.classList.contains('dark-mode')) {
-        iconMoon.classList.remove('hidden');
-        iconSun.classList.add('hidden');
-        els.themeToggle.title = 'Alternar para tema claro';
-    } else {
-        iconMoon.classList.add('hidden');
-        iconSun.classList.remove('hidden');
-        els.themeToggle.title = 'Alternar para tema escuro';
-    }
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  if (prefersLight) {
+    document.body.classList.add('light');
+  }
+
+  const iconMoon = document.getElementById('theme-icon-moon');
+  const iconSun  = document.getElementById('theme-icon-sun');
+  const isLight  = document.body.classList.contains('light');
+
+  if (isLight) {
+    iconMoon.classList.add('hidden');
+    iconSun.classList.remove('hidden');
+    els.themeToggle.title = 'Alternar para tema escuro';
+  } else {
+    iconMoon.classList.remove('hidden');
+    iconSun.classList.add('hidden');
+    els.themeToggle.title = 'Alternar para tema claro';
+  }
 }
 
 function limparAnalise() {
