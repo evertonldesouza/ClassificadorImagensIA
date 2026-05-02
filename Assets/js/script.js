@@ -1,5 +1,3 @@
-
-
 let modelo = null;
 let modeloName = 'mobilenet';
 let mobilenetModel = null;
@@ -41,8 +39,18 @@ function showToast(message, type='success', duration=3500) {
   t.className = 'toast ' + (type==='error' ? 'error' : (type==='warning' ? 'warning' : ''));
   t.textContent = message;
   document.body.appendChild(t);
-  setTimeout(()=> t.style.animation = 'slideOutRight 0.4s forwards', duration-400);
-  setTimeout(()=> t.remove(), duration);
+  setTimeout(() => {
+    t.classList.add('removing');
+    setTimeout(() => t.remove(), 300);
+  }, duration - 300);
+}
+
+function selectModelo(name) {
+  document.querySelectorAll('.modelo-card').forEach(c => c.classList.remove('active'));
+  const card = document.querySelector(`.modelo-card[data-model="${name}"]`);
+  if (card) card.classList.add('active');
+  const sel = document.getElementById('modelo-select');
+  if (sel) { sel.value = name; sel.dispatchEvent(new Event('change')); }
 }
 
 
@@ -260,7 +268,7 @@ function desenharResultados(results) {
   ultimoResultado = results; 
   els.resultado.innerHTML = '';
   if (!results || results.length === 0) {
-    els.resultado.innerHTML = '<p style="color:#888">Nenhuma previsão.</p>';
+    els.resultado.innerHTML = '<div class="resultado-empty">// nenhuma previsão encontrada</div>';
     return;
   }
   results.forEach((r, i) => {
@@ -321,12 +329,18 @@ function renderHistoricoUI() {
   arr.forEach((h, idx)=> {
     const div = document.createElement('div');
     div.className = 'historico-item';
-    div.innerHTML = `<div><strong>${h.nome || 'Imagem'}</strong><div style="font-size:0.85em;color:#666">${new Date(h.date).toLocaleString()}</div></div>
-      <div>${(h.results && h.results[0]) ? (h.results[0].className || h.results[0].class) : '-'}</div>`;
+    const topResult = (h.results && h.results[0]) ? (h.results[0].className || h.results[0].class) : '—';
+    div.innerHTML = `
+      <div>
+        <div class="historico-item-nome">${h.nome || 'Imagem'}</div>
+        <div class="historico-item-data">${new Date(h.date).toLocaleString()}</div>
+      </div>
+      <div class="historico-item-resultado">${topResult}</div>`;
     els.historicoLista.appendChild(div);
   });
 
   
+  document.getElementById('estatisticas').classList.remove('hidden');
   els.totalAnalises.textContent = arr.length;
   
   const freq = {};
@@ -391,7 +405,7 @@ function limparAnalise() {
   els.imagemPreview.src = '';
   pararCamera(); 
   
-  els.resultado.innerHTML = '<p style="color: #888;">Aguardando análise...</p>';
+  els.resultado.innerHTML = '<div class="resultado-empty">// aguardando análise</div>';
   els.acoesResultado.classList.add('hidden');
   ultimoResultado = [];
 }
