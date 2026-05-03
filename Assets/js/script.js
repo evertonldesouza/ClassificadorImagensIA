@@ -74,6 +74,25 @@ function init() {
   if (els.btnLimparHistorico) els.btnLimparHistorico.addEventListener('click', limparHistorico);
   if (els.themeToggle) els.themeToggle.addEventListener('click', toggleTheme);
 
+  // Drag and drop na área de upload
+  const areaUpload = els.areaUpload;
+  areaUpload.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    areaUpload.classList.add('dragover');
+  });
+  areaUpload.addEventListener('dragleave', () => {
+    areaUpload.classList.remove('dragover');
+  });
+  areaUpload.addEventListener('drop', (e) => {
+    e.preventDefault();
+    areaUpload.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) {
+      // Simula o evento de change reutilizando o handler existente
+      handleFiles({ target: { files } });
+    }
+  });
+
   if (els.btnDownload) els.btnDownload.addEventListener('click', baixarResultado);
   if (els.btnCompartilhar) els.btnCompartilhar.addEventListener('click', compartilharResultado);
   if (els.btnLimpar) els.btnLimpar.addEventListener('click', limparAnalise);
@@ -251,14 +270,8 @@ async function classificarElemento(el) {
   }
 
 
-  const resizedTensor = tf.browser.fromPixels(el).toFloat();
-  
-  const small = tf.image.resizeBilinear(resizedTensor, [224, 224]);
-  const expanded = small.expandDims(0);
-  const normalized = expanded.div(255);
-  const predictions = await modelo.classify(el); 
-  
-  tf.dispose([resizedTensor, small, expanded, normalized]);
+  // O MobileNet já redimensiona internamente — chamamos classify direto no elemento
+  const predictions = await modelo.classify(el);
   
   return predictions.map(p => ({className: p.className, probability: p.probability}));
 }
@@ -361,30 +374,24 @@ function limparHistorico() {
 
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
-  const iconMoon = document.getElementById('theme-icon-moon');
-  const iconSun  = document.getElementById('theme-icon-sun');
-
-  if (isLight) {
-    iconMoon.classList.add('hidden');
-    iconSun.classList.remove('hidden');
-    els.themeToggle.title = 'Alternar para tema escuro';
-  } else {
-    iconMoon.classList.remove('hidden');
-    iconSun.classList.add('hidden');
-    els.themeToggle.title = 'Alternar para tema claro';
-  }
+  // Salva a preferência do usuário no localStorage
+  localStorage.setItem('ia_tema', isLight ? 'light' : 'dark');
+  atualizarIconeTema(isLight);
 }
 
 function checkInitialTheme() {
+  // Prioridade: preferência salva pelo usuário → preferência do sistema
+  const temaSalvo = localStorage.getItem('ia_tema');
   const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-  if (prefersLight) {
-    document.body.classList.add('light');
-  }
+  const isLight = temaSalvo ? temaSalvo === 'light' : prefersLight;
 
+  if (isLight) document.body.classList.add('light');
+  atualizarIconeTema(isLight);
+}
+
+function atualizarIconeTema(isLight) {
   const iconMoon = document.getElementById('theme-icon-moon');
   const iconSun  = document.getElementById('theme-icon-sun');
-  const isLight  = document.body.classList.contains('light');
-
   if (isLight) {
     iconMoon.classList.add('hidden');
     iconSun.classList.remove('hidden');
