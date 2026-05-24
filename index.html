@@ -73,9 +73,14 @@
         Enviar Imagem
       </button>
     </div>
+    <div class="conf-slider-wrap" style="margin-bottom:16px">
+      <label for="conf-threshold">Conf. mín.</label>
+      <input type="range" id="conf-threshold" min="0" max="100" value="0">
+      <span id="conf-threshold-value">0%</span>
+    </div>
 
     <div id="area-upload" class="upload-area hidden">
-      <input type="file" id="upload-imagem" accept="image/*">
+      <input type="file" id="upload-imagem" accept="image/*" multiple>
       <label for="upload-imagem" style="cursor:pointer;display:block;">
         <div class="upload-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
@@ -89,8 +94,11 @@
     </div>
 
     <div class="preview-box">
-      <video id="video-preview" class="hidden" autoplay muted playsinline></video>
-      <img id="imagem-preview" class="hidden" alt="Preview da imagem">
+      <div class="preview-wrapper" id="preview-wrapper">
+        <video id="video-preview" class="hidden" autoplay muted playsinline></video>
+        <img id="imagem-preview" class="hidden" alt="Preview da imagem">
+        <canvas id="bbox-canvas" class="hidden"></canvas>
+      </div>
 
       <div id="camera-controls" class="camera-controls hidden">
         <button id="btn-capturar">
@@ -145,17 +153,26 @@
 
     <div id="status-modelo" class="status-loading">
       <div class="spinner"></div>
-      Carregando modelo de IA...
+      <span id="status-modelo-text">Carregando modelo de IA...</span>
     </div>
 
     <div id="historico" class="historico hidden">
-      <h3>
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M8.515 1.019A7 7 0 1 0 8 15a7 7 0 0 0 .515-13.981zM8 13A6 6 0 1 1 8 1a6 6 0 0 1 0 12z"/>
-          <path d="M8.5 5.5a.5.5 0 0 0-1 0v3.362l-1.429 2.38a.5.5 0 1 0 .858.515l1.5-2.5A.5.5 0 0 0 8.5 9V5.5z"/>
-        </svg>
-        Histórico
-      </h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h3 style="margin-bottom:0;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8.515 1.019A7 7 0 1 0 8 15a7 7 0 0 0 .515-13.981zM8 13A6 6 0 1 1 8 1a6 6 0 0 1 0 12z"/>
+            <path d="M8.5 5.5a.5.5 0 0 0-1 0v3.362l-1.429 2.38a.5.5 0 1 0 .858.515l1.5-2.5A.5.5 0 0 0 8.5 9V5.5z"/>
+          </svg>
+          Histórico
+        </h3>
+        <button class="btn-acao" id="btn-export-historico" title="Exportar histórico como JSON">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+          </svg>
+          Exportar
+        </button>
+      </div>
       <div id="historico-lista"></div>
       <div id="estatisticas" class="estatisticas hidden">
         <div class="estatisticas-item">
@@ -172,6 +189,12 @@
       </button>
     </div>
 
+  </div>
+
+  <div id="modal-container"></div>
+  <div id="sw-update-banner" class="sw-update-banner hidden">
+    <span>Nova versão disponível!</span>
+    <button id="btn-sw-update">Atualizar</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>

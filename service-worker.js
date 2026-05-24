@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_STATIC  = `classificador-static-${CACHE_VERSION}`;
 const CACHE_MODELS  = `classificador-models-${CACHE_VERSION}`;
 
@@ -6,8 +6,8 @@ const STATIC_FILES = [
   '/',
   '/index.html',
   '/manifest.json',
-  './Assets/css/style.css',
-  './Assets/js/script.js',
+  '/Assets/css/style.css',
+  '/Assets/js/script.js',
 ];
 
 const CDN_FILES = [
@@ -41,18 +41,21 @@ self.addEventListener('activate', (event) => {
       Promise.all(
         keys
           .filter((key) => !CACHES_VALIDOS.includes(key))
-          .map((key) => {
-            console.log('[SW] Removendo cache antigo:', key);
-            return caches.delete(key);
-          })
+          .map((key) => caches.delete(key))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => {
+      self.clients.claim();
+      return self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'SW_UPDATED' });
+        });
+      });
+    })
   );
 });
 
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
-
   if (event.request.method !== 'GET') return;
   if (url.startsWith('chrome-extension://')) return;
 
@@ -62,7 +65,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isCDN(url)) {
-    event.respondWith(cacheFirst(event.request, CACHE_MODELS));
+    event.respondWith(modelWeightFirst(event.request, CACHE_MODELS));
     return;
   }
 
@@ -81,6 +84,21 @@ async function cacheFirst(request, cacheName) {
     return response;
   } catch {
     return new Response('Recurso indisponível offline.', { status: 503 });
+  }
+}
+
+async function modelWeightFirst(request, cacheName) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return fetch(request);
   }
 }
 
