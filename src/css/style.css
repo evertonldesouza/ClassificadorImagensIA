@@ -362,6 +362,19 @@ h1 svg { color: var(--accent); flex-shrink: 0; }
 }
 .camera-controls button:hover { border-color: var(--accent); color: var(--accent); }
 #btn-parar:hover { border-color: var(--red); color: var(--red); }
+
+.btn-tempo-real { border-color: var(--accent); color: var(--accent); }
+.btn-tempo-real:hover { background: var(--accent-glow); }
+.btn-tempo-real.ativo {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+  animation: pulse-dot 2s infinite;
+}
+
+.btn-copiar { border-color: var(--text3); color: var(--text2); }
+.btn-copiar:hover { border-color: var(--accent2); color: var(--accent2); }
 #btn-capturar { border-color: var(--accent); color: var(--accent); }
 #btn-capturar:hover { background: var(--accent-glow); }
 
