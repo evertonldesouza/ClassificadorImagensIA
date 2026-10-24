@@ -5,27 +5,29 @@
 
 import * as mobilenet from '@tensorflow-models/mobilenet';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
-import { els, atualizarProgresso, setModelStatus } from './ui.js';
+import { els, atualizarProgresso, setModelStatus } from './ui.ts';
 
 /** Instâncias em cache dos modelos (evita recarregamento). */
-let mobilenetModel = null;
-let cocoModel = null;
+let mobilenetModel: mobilenet.MobileNet | null = null;
+let cocoModel: cocoSsd.ObjectDetection | null = null;
 
 /** Modelo atualmente ativo e seu nome. */
-let modelo = null;
-let modeloName = 'mobilenet';
+let modelo: mobilenet.MobileNet | cocoSsd.ObjectDetection | null = null;
+let modeloName: 'mobilenet' | 'coco-ssd' = 'mobilenet';
 
 /**
  * Carrega (ou recupera do cache de memória) o modelo solicitado.
  * Atualiza a UI de progresso e status durante o processo.
  *
- * @param {'mobilenet'|'coco-ssd'} name - Nome do modelo a carregar.
- * @returns {Promise<Object>} Instância do modelo carregado.
- * @throws {Error} Se o carregamento falhar.
+ * @param name - Nome do modelo a carregar.
+ * @returns Instância do modelo carregado.
+ * @throws Se o carregamento falhar.
  */
-export async function carregarModelo(name) {
+export async function carregarModelo(
+  name: 'mobilenet' | 'coco-ssd',
+): Promise<mobilenet.MobileNet | cocoSsd.ObjectDetection> {
   modeloName = name;
-  els.modeloProgresso.classList.remove('hidden');
+  (els.modeloProgresso as HTMLElement).classList.remove('hidden');
   setModelStatus('loading', 'Carregando modelo de IA...');
 
   // Já está em memória: reutiliza.
@@ -54,17 +56,17 @@ export async function carregarModelo(name) {
 
   atualizarProgresso(100, 'Modelo pronto!');
   finalizarCarregamento();
-  return modelo;
+  return modelo as mobilenet.MobileNet | cocoSsd.ObjectDetection;
 }
 
 /**
  * Finaliza o carregamento: atualiza status, habilita controles e esconde
  * a barra de progresso após um curto atraso.
  */
-function finalizarCarregamento() {
+function finalizarCarregamento(): void {
   setModelStatus('ready', 'Modelo carregado com sucesso!');
   setTimeout(() => {
-    els.modeloProgresso.classList.add('hidden');
+    (els.modeloProgresso as HTMLElement).classList.add('hidden');
   }, 600);
   habilitarControles(true);
 }
@@ -72,25 +74,25 @@ function finalizarCarregamento() {
 /**
  * Habilita ou desabilita os botões de entrada (câmera/upload).
  *
- * @param {boolean} habilitado
+ * @param habilitado - Se true, habilita os controles.
  */
-export function habilitarControles(habilitado) {
-  if (els.btnWebcam) {els.btnWebcam.disabled = !habilitado;}
-  if (els.btnUpload) {els.btnUpload.disabled = !habilitado;}
+export function habilitarControles(habilitado: boolean): void {
+  const btnWebcam = els.btnWebcam as HTMLButtonElement | null;
+  const btnUpload = els.btnUpload as HTMLButtonElement | null;
+  if (btnWebcam) {btnWebcam.disabled = !habilitado;}
+  if (btnUpload) {btnUpload.disabled = !habilitado;}
 }
 
 /**
  * Retorna o modelo ativo.
- * @returns {Object|null}
  */
-export function getModelo() {
+export function getModelo(): mobilenet.MobileNet | cocoSsd.ObjectDetection | null {
   return modelo;
 }
 
 /**
  * Retorna o nome do modelo ativo.
- * @returns {'mobilenet'|'coco-ssd'}
  */
-export function getModeloName() {
+export function getModeloName(): 'mobilenet' | 'coco-ssd' {
   return modeloName;
 }
