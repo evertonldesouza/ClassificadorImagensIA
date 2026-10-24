@@ -198,6 +198,34 @@
         <span id="conf-threshold-value">0%</span>
       </div>
 
+      <div class="modo-educativo-wrap">
+        <button
+          id="btn-modo-educativo"
+          class="btn-modo-educativo"
+          title="Modo educativo: como a IA pensa"
+          aria-label="Ativar modo educativo (visualização de ativações)"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+          >
+            <path d="M8 3.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 3.5z" />
+            <path d="M8 6.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 6.5z" />
+            <path d="M7.5 10a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 7.5 10z" />
+            <path d="M7.5 13a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 7.5 13z" />
+            <path d="M8 4a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 4zM8 7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 7zM8 10a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 10zM8 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2a.5.5 0 0 1 .5-.5z" />
+          </svg>
+          Modo Educativo
+        </button>
+        <span id="modo-educativo-desc" class="modo-educativo-desc">
+          Veja como as camadas da IA processam a imagem
+        </span>
+      </div>
+
       <div id="area-upload" class="upload-area hidden">
         <input type="file" id="upload-imagem" accept="image/*" multiple />
         <label for="upload-imagem" style="cursor:pointer;display:block;">
@@ -354,6 +382,36 @@
             </svg>
             Nova Análise
           </button>
+        </div>
+
+        <div id="painel-educativo" class="painel-educativo hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="margin:0;">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                fill="currentColor"
+                viewBox="0 0 16 16"
+                aria-hidden="true"
+              >
+                <path d="M8 3.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 3.5z" />
+                <path d="M8 6.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 6.5z" />
+                <path d="M7.5 10a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 7.5 10z" />
+                <path d="M7.5 13a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2A.5.5 0 0 1 7.5 13z" />
+                <path fill-rule="evenodd" d="M8 4a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 4zM8 7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 7zM8 10a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 10zM8 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2a.5.5 0 0 1 .5-.5z" />
+              </svg>
+              Como a IA pensa
+            </h3>
+            <button id="btn-fechar-educativo" class="btn-acao" title="Fechar painel educativo">×</button>
+          </div>
+          <p id="educativo-descricao" class="educativo-descricao">
+            As camadas iniciais detectam bordas e cores; camadas mais profundas
+            reconhecem formas e objetos complexos.
+          </p>
+          <div id="ativacao-camadas" class="ativacao-camadas">
+            <!-- Ativações serão injetadas aqui via JS -->
+          </div>
         </div>
       </div>
 

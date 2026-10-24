@@ -14,13 +14,19 @@ import {
   copiarParaClipboard,
   renderHistoricoUI,
 } from './ui.ts';
-import { carregarModelo, getModeloName } from './models.ts';
+import { carregarModelo, getModelo, getModeloName } from './models.ts';
 import {
   processarImagemUrl,
   desenharResultados,
   desenharBoundingBoxes,
   comprimirImagem,
 } from './classifier.ts';
+import {
+  initModoEducativo,
+  isModoEducativo,
+  renderizarAtivacoes,
+  limparAtivacoes,
+} from './educational.ts';
 import {
   startWebcam,
   pararCamera,
@@ -96,6 +102,16 @@ async function handleFiles(e: Event): Promise<void> {
     const imgUrl = URL.createObjectURL(compressed);
     await processarImagemUrl(imgUrl, file.name);
     URL.revokeObjectURL(imgUrl);
+
+    if (isModoEducativo() && getModeloName() === 'mobilenet') {
+      const modelo = getModelo();
+      if (modelo) {
+        renderizarAtivacoes(
+          els.imagemPreview as HTMLImageElement,
+          modelo,
+        );
+      }
+    }
   }
 
   if (target) {target.value = '';}
@@ -188,6 +204,7 @@ function limparAnaliseAtual(): void {
   bboxCanvas.classList.add('hidden');
   imagemPreview.src = '';
   pararCamera();
+  limparAtivacoes();
   const resultado = els.resultado as HTMLElement;
   resultado.innerHTML = '<div class="resultado-empty">// aguardando análise</div>';
   const acoesResultado = els.acoesResultado as HTMLElement;
@@ -381,6 +398,9 @@ function configurarOuvintes(): void {
 async function init(): Promise<void> {
   // Tema inicial
   checkInitialTheme();
+
+  // Modo educativo
+  initModoEducativo();
 
   // Ouvintes
   configurarOuvintes();

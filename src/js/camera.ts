@@ -4,7 +4,11 @@
  */
 
 import { els, showToast } from './ui.ts';
-import { getModeloName } from './models.ts';
+import { getModelo, getModeloName } from './models.ts';
+import {
+  isModoEducativo,
+  renderizarAtivacoes,
+} from './educational.ts';
 import {
   classificarElemento,
   desenharResultados,
@@ -140,6 +144,16 @@ export async function capturarFoto(): Promise<void> {
     date: new Date().toISOString(),
   });
   renderHistoricoUI();
+
+  if (isModoEducativo() && getModeloName() === 'mobilenet') {
+    const modelo = getModelo();
+    if (modelo) {
+      renderizarAtivacoes(
+        els.imagemPreview as HTMLImageElement,
+        modelo,
+      );
+    }
+  }
 }
 
 /**
