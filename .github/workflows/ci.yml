@@ -29,8 +29,14 @@ jobs:
       - name: Lintagem (ESLint)
         run: npm run lint
 
+      - name: Verificação de tipos (TypeScript)
+        run: npm run type-check
+
       - name: Testes unitários (Vitest)
         run: npm run test
+
+      - name: Testes E2E (Playwright)
+        run: npm run e2e
 
       - name: Build de produção (Vite)
         run: npm run build
