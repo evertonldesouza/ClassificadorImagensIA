@@ -35,6 +35,9 @@ jobs:
       - name: Testes unitários (Vitest)
         run: npm run test
 
+      - name: Instalar navegadores Playwright
+        run: npx playwright install --with-deps chromium
+
       - name: Testes E2E (Playwright)
         run: npm run e2e
 
