@@ -10,14 +10,27 @@ export const HIST_KEY = 'ia_classificador_historico_v1';
 /** Número máximo de entradas mantidas no histórico. */
 const MAX_ENTRIES = 50;
 
+/** Tipo de uma entrada de classificação. */
+export interface Classificacao {
+  className: string;
+  probability: number;
+  bbox?: number[];
+}
+
+/** Tipo de uma entrada do histórico. */
+export interface HistoricoEntry {
+  nome: string;
+  results: Classificacao[];
+  date: string;
+}
+
 /**
  * Recupera todas as entradas do histórico.
- * @returns {Array<{nome: string, results: Array, date: string}>}
  */
-export function listarHistorico() {
+export function listarHistorico(): HistoricoEntry[] {
   try {
     const raw = localStorage.getItem(HIST_KEY);
-    return raw ? JSON.parse(raw) : [];
+    return raw ? (JSON.parse(raw) as HistoricoEntry[]) : [];
   } catch {
     return [];
   }
@@ -27,12 +40,10 @@ export function listarHistorico() {
  * Salva uma nova entrada no histórico (inserida no topo) e corta as
  * excedentes ao limite máximo.
  *
- * @param {Object} entry
- * @param {string} entry.nome - Nome da imagem / origem da análise.
- * @param {Array} entry.results - Resultados da classificação.
- * @param {string} entry.date - Data/hora em ISO 8601.
+ * @param entry - Entrada a salvar.
+ * @returns O histórico atualizado.
  */
-export function salvarHistoricoEntry(entry) {
+export function salvarHistoricoEntry(entry: HistoricoEntry): HistoricoEntry[] {
   const arr = listarHistorico();
   arr.unshift(entry);
   if (arr.length > MAX_ENTRIES) {
@@ -49,7 +60,7 @@ export function salvarHistoricoEntry(entry) {
 /**
  * Remove todas as entradas do histórico.
  */
-export function limparHistorico() {
+export function limparHistorico(): void {
   try {
     localStorage.removeItem(HIST_KEY);
   } catch {
@@ -59,9 +70,9 @@ export function limparHistorico() {
 
 /**
  * Exporta o histórico como um Blob JSON pronto para download.
- * @returns {Blob|null} Blob do histórico ou null se vazio.
+ * @returns Blob do histórico ou null se vazio.
  */
-export function exportarHistoricoBlob() {
+export function exportarHistoricoBlob(): Blob | null {
   const arr = listarHistorico();
   if (!arr.length) {
     return null;
@@ -73,18 +84,22 @@ export function exportarHistoricoBlob() {
 
 /**
  * Calcula estatísticas resumidas do histórico.
- * @returns {{total: number, maisFrequente: string}}
  */
-export function calcularEstatisticas() {
+export interface Estatisticas {
+  total: number;
+  maisFrequente: string;
+}
+
+/**
+ * Calcula estatísticas resumidas do histórico.
+ */
+export function calcularEstatisticas(): Estatisticas {
   const arr = listarHistorico();
   const total = arr.length;
 
-  const freq = {};
+  const freq: Record<string, number> = {};
   arr.forEach((item) => {
-    const results = item.results;
-    const top = results && results[0]
-      ? results[0].className || results[0].class || ''
-      : '';
+    const top = item.results?.[0]?.className || '';
     if (!top) {return;}
     freq[top] = (freq[top] || 0) + 1;
   });

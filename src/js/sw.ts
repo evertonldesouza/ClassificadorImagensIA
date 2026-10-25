@@ -3,12 +3,12 @@
  * Habilita uso offline, cache de modelos/CDN e notifica sobre atualizações.
  */
 
-import { els } from './ui.js';
+import { els } from './ui.ts';
 
 /**
  * Registra o Service Worker na raiz do domínio.
  */
-export function registrarSW() {
+export function registrarSW(): void {
   if (!('serviceWorker' in navigator)) {
     return;
   }
@@ -28,7 +28,10 @@ export function registrarSW() {
         const novoSW = registro.installing;
         if (!novoSW) {return;}
         novoSW.addEventListener('statechange', () => {
-          if (novoSW.state === 'installed' && navigator.serviceWorker.controller) {
+          if (
+            novoSW.state === 'installed' &&
+            navigator.serviceWorker.controller
+          ) {
             // Nova versão instalada e há um controller ativo → atualização disponível.
             exibirBannerAtualizacao();
           }
@@ -44,16 +47,18 @@ export function registrarSW() {
 /**
  * Exibe o banner de nova versão disponível.
  */
-function exibirBannerAtualizacao() {
-  if (!els.swBanner || !els.btnSwUpdate) {return;}
-  els.swBanner.classList.remove('hidden');
-  els.btnSwUpdate.onclick = aplicarAtualizacaoSW;
+function exibirBannerAtualizacao(): void {
+  const swBanner = els.swBanner as HTMLElement | null;
+  const btnSwUpdate = els.btnSwUpdate as HTMLButtonElement | null;
+  if (!swBanner || !btnSwUpdate) {return;}
+  swBanner.classList.remove('hidden');
+  btnSwUpdate.onclick = aplicarAtualizacaoSW;
 }
 
 /**
  * Aplica a atualização do Service Worker (skip waiting + recarrega).
  */
-export function aplicarAtualizacaoSW() {
+export function aplicarAtualizacaoSW(): void {
   if (navigator.serviceWorker?.controller) {
     navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
   }
@@ -66,7 +71,7 @@ export function aplicarAtualizacaoSW() {
 /**
  * Escuta mensagens do SW (ex.: SW_UPDATED) e eventos de controllerchange.
  */
-export function ouvirAtualizacaoSW() {
+export function ouvirAtualizacaoSW(): void {
   if (!navigator.serviceWorker) {return;}
 
   navigator.serviceWorker.addEventListener('message', (event) => {

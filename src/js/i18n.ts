@@ -6,9 +6,8 @@
 
 /**
  * Dicionário de tradução: rótulo em inglês (chave) → português (valor).
- * @type {Record<string, string>}
  */
-const TRADUCOES = {
+const TRADUCOES: Record<string, string> = {
   // COCO-SSD / objetos do dia a dia
   'coffee mug': 'xícara de café',
   'computer keyboard': 'teclado',
@@ -109,12 +108,12 @@ const TRADUCOES = {
  * Traduz um rótulo de classe da IA para o português, com cache em
  * localStorage para evitar recomputar traduções repetidas.
  *
- * @param {string} texto - Rótulo em inglês retornado pelo modelo.
- * @returns {string} Rótulo traduzido (ou o original, se não houver tradução).
+ * @param texto - Rótulo em inglês retornado pelo modelo.
+ * @returns Rótulo traduzido (ou o original, se não houver tradução).
  */
-export function traduzir(texto) {
+export function traduzir(texto: string): string {
   if (typeof texto !== 'string' || texto.length === 0) {
-    return texto;
+    return texto as string;
   }
 
   const cacheKey = `ia_trad_${texto}`;

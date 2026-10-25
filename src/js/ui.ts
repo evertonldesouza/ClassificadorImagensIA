@@ -4,11 +4,11 @@
  * Mantida separada da lógica de negócio para facilitar manutenção.
  */
 
-import { traduzir } from './i18n.js';
-import { listarHistorico } from './history.js';
+import { traduzir } from './i18n.ts';
+import { listarHistorico } from './history.ts';
 
 /** Referências aos elementos DOM usados pela aplicação. */
-export const els = {
+export const els: Record<string, HTMLElement | null> = {
   btnWebcam: document.getElementById('btn-webcam'),
   btnUpload: document.getElementById('btn-upload'),
   uploadInput: document.getElementById('upload-imagem'),
@@ -51,13 +51,19 @@ export const els = {
 /**
  * Exibe um toast (notificação temporária) na tela.
  *
- * @param {string} message - Mensagem a exibir.
- * @param {'success'|'error'|'warning'|undefined} type - Tipo do toast.
- * @param {number} [duration=3500] - Duração em milissegundos.
+ * @param message - Mensagem a exibir.
+ * @param type - Tipo do toast.
+ * @param duration - Duração em milissegundos.
  */
-export function showToast(message, type, duration = 3500) {
+export function showToast(
+  message: string,
+  type: 'success' | 'error' | 'warning' | undefined = undefined,
+  duration = 3500,
+): void {
   const t = document.createElement('div');
-  t.className = `toast ${type === 'error' ? 'error' : type === 'warning' ? 'warning' : ''}`;
+  t.className = `toast ${
+    type === 'error' ? 'error' : type === 'warning' ? 'warning' : ''
+  }`;
   t.textContent = message;
   t.setAttribute('role', 'alert');
   document.body.appendChild(t);
@@ -71,10 +77,10 @@ export function showToast(message, type, duration = 3500) {
 /**
  * Copia um texto para a área de transferência (Clipboard API).
  *
- * @param {string} texto - Texto a copiar.
- * @returns {Promise<boolean>} true se copiado com sucesso.
+ * @param texto - Texto a copiar.
+ * @returns true se copiado com sucesso.
  */
-export async function copiarParaClipboard(texto) {
+export async function copiarParaClipboard(texto: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(texto);
     return true;
@@ -100,8 +106,9 @@ export async function copiarParaClipboard(texto) {
 
 /**
  * Alterna entre tema claro e escuro, persistindo a escolha.
+ * @returns true se o tema claro estiver ativo.
  */
-export function toggleTheme() {
+export function toggleTheme(): boolean {
   const isLight = document.body.classList.toggle('light');
   localStorage.setItem('ia_tema', isLight ? 'light' : 'dark');
   atualizarIconeTema(isLight);
@@ -110,8 +117,9 @@ export function toggleTheme() {
 
 /**
  * Aplica o tema salvo (ou a preferência do sistema) na carga inicial.
+ * @returns true se o tema claro estiver ativo.
  */
-export function checkInitialTheme() {
+export function checkInitialTheme(): boolean {
   const temaSalvo = localStorage.getItem('ia_tema');
   const prefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
   const isLight = temaSalvo ? temaSalvo === 'light' : prefersLight;
@@ -125,12 +133,13 @@ export function checkInitialTheme() {
 /**
  * Atualiza os ícones (lua/sol) e o título do botão de tema.
  *
- * @param {boolean} isLight - true se o tema claro estiver ativo.
+ * @param isLight - true se o tema claro estiver ativo.
  */
-export function atualizarIconeTema(isLight) {
+export function atualizarIconeTema(isLight: boolean): void {
   const iconMoon = document.getElementById('theme-icon-moon');
   const iconSun = document.getElementById('theme-icon-sun');
-  const btn = els.themeToggle;
+  const btn = els.themeToggle as HTMLButtonElement;
+  if (!btn) {return;}
 
   if (isLight) {
     iconMoon?.classList.add('hidden');
@@ -146,11 +155,12 @@ export function atualizarIconeTema(isLight) {
 /**
  * Renderiza o estado de carregamento/pronto/erro do modelo.
  *
- * @param {'loading'|'ready'|'error'} estado
- * @param {string} texto
+ * @param estado - 'loading' | 'ready' | 'error'
+ * @param texto - Texto a exibir.
  */
-export function setModelStatus(estado, texto) {
-  const { statusModelo, statusModeloText } = els;
+export function setModelStatus(estado: 'loading' | 'ready' | 'error', texto: string): void {
+  const statusModelo = els.statusModelo as HTMLElement;
+  const statusModeloText = els.statusModeloText as HTMLElement;
   statusModelo.className = `status-${estado}`;
   statusModeloText.textContent = texto;
 }
@@ -158,20 +168,22 @@ export function setModelStatus(estado, texto) {
 /**
  * Mostra/esconde a barra de progresso do modelo e atualiza valores.
  *
- * @param {number} percent
- * @param {string} texto
+ * @param percent - Percentual (0-100).
+ * @param texto - Texto opcional.
  */
-export function atualizarProgresso(percent, texto = '') {
-  els.modeloProgressoBar.style.width = `${percent}%`;
-  els.modeloProgressoText.textContent = texto || '';
+export function atualizarProgresso(percent: number, texto = ''): void {
+  const bar = els.modeloProgressoBar as HTMLElement;
+  const text = els.modeloProgressoText as HTMLElement;
+  bar.style.width = `${percent}%`;
+  text.textContent = texto || '';
 }
 
 /**
  * Cria e exibe um modal de confirmação para limpar o histórico.
  *
- * @param {Function} onConfirm - Callback executado ao confirmar.
+ * @param onConfirm - Callback executado ao confirmar.
  */
-export function mostrarModalConfirmacao(onConfirm) {
+export function mostrarModalConfirmacao(onConfirm: () => void): void {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -187,8 +199,8 @@ export function mostrarModalConfirmacao(onConfirm) {
     </div>`;
   document.body.appendChild(overlay);
 
-  const cancelar = overlay.querySelector('#modal-cancel');
-  const confirmar = overlay.querySelector('#modal-confirm');
+  const cancelar = overlay.querySelector('#modal-cancel') as HTMLButtonElement;
+  const confirmar = overlay.querySelector('#modal-confirm') as HTMLButtonElement;
   cancelar.focus();
 
   const fechar = () => overlay.remove();
@@ -207,23 +219,28 @@ export function mostrarModalConfirmacao(onConfirm) {
  * Renderiza o histórico de análises e as estatísticas resumidas na UI.
  * Lê os dados do módulo de histórico e atualiza o DOM.
  */
-export function renderHistoricoUI() {
+export function renderHistoricoUI(): void {
   const arr = listarHistorico();
+  const historico = els.historico as HTMLElement;
+  const historicoLista = els.historicoLista as HTMLElement;
+  const estatisticas = els.estatisticas as HTMLElement;
+  const totalAnalises = els.totalAnalises as HTMLElement;
+  const maisFrequente = els.maisFrequente as HTMLElement;
 
   if (!arr.length) {
-    els.historico.classList.add('hidden');
+    historico.classList.add('hidden');
     return;
   }
 
-  els.historico.classList.remove('hidden');
-  els.historicoLista.innerHTML = '';
+  historico.classList.remove('hidden');
+  historicoLista.innerHTML = '';
 
   arr.forEach((h) => {
     const div = document.createElement('div');
     div.className = 'historico-item';
     const topResult =
       h.results && h.results[0]
-        ? traduzir(h.results[0].className || h.results[0].class || '')
+        ? traduzir(h.results[0].className)
         : '—';
     div.innerHTML = `
       <div>
@@ -231,21 +248,18 @@ export function renderHistoricoUI() {
         <div class="historico-item-data">${new Date(h.date).toLocaleString()}</div>
       </div>
       <div class="historico-item-resultado">${topResult}</div>`;
-    els.historicoLista.appendChild(div);
+    historicoLista.appendChild(div);
   });
 
-  els.estatisticas.classList.remove('hidden');
-  els.totalAnalises.textContent = arr.length;
+  estatisticas.classList.remove('hidden');
+  totalAnalises.textContent = String(arr.length);
 
-  const freq = {};
+  const freq: Record<string, number> = {};
   arr.forEach((item) => {
-    const top =
-      item.results?.[0] ? item.results[0].className || item.results[0].class : null;
-    if (!top) {
-      return;
-    }
+    const top = item.results?.[0]?.className || null;
+    if (!top) {return;}
     freq[top] = (freq[top] || 0) + 1;
   });
   const mais = Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0] || '-';
-  els.maisFrequente.textContent = mais;
+  maisFrequente.textContent = mais;
 }

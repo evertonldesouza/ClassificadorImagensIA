@@ -13,14 +13,20 @@ import {
   showToast,
   copiarParaClipboard,
   renderHistoricoUI,
-} from './ui.js';
-import { carregarModelo, getModeloName } from './models.js';
+} from './ui.ts';
+import { carregarModelo, getModelo, getModeloName } from './models.ts';
 import {
   processarImagemUrl,
   desenharResultados,
   desenharBoundingBoxes,
   comprimirImagem,
-} from './classifier.js';
+} from './classifier.ts';
+import {
+  initModoEducativo,
+  isModoEducativo,
+  renderizarAtivacoes,
+  limparAtivacoes,
+} from './educational.ts';
 import {
   startWebcam,
   pararCamera,
@@ -29,29 +35,31 @@ import {
   iniciarAnaliseTempoReal,
   pararAnaliseTempoReal,
   isAnalisandoTempoReal,
-} from './camera.js';
+} from './camera.ts';
 import {
   limparHistorico,
   exportarHistoricoBlob,
-} from './history.js';
-import { registrarSW, aplicarAtualizacaoSW, ouvirAtualizacaoSW } from './sw.js';
-import { traduzir } from './i18n.js';
+} from './history.ts';
+import {
+  registrarSW,
+  aplicarAtualizacaoSW,
+  ouvirAtualizacaoSW,
+} from './sw.ts';
+import { traduzir } from './i18n.ts';
 
-let ultimoResultado = [];
+let ultimoResultado: { className: string; probability: number; bbox?: number[] }[] = [];
 
 /**
  * Seleciona o modelo nos cards e no select, e dispara o carregamento.
  *
- * @param {'mobilenet'|'coco-ssd'} name
+ * @param name - Nome do modelo a selecionar.
  */
-export function selectModelo(name) {
-  document
-    .querySelectorAll('.modelo-card')
-    .forEach((c) => c.classList.remove('active'));
+export function selectModelo(name: 'mobilenet' | 'coco-ssd'): void {
+  document.querySelectorAll('.modelo-card').forEach((c) => c.classList.remove('active'));
   const card = document.querySelector(`.modelo-card[data-model="${name}"]`);
   if (card) {card.classList.add('active');}
 
-  const sel = document.getElementById('modelo-select');
+  const sel = document.getElementById('modelo-select') as HTMLSelectElement | null;
   if (sel) {
     sel.value = name;
     sel.dispatchEvent(new Event('change'));
@@ -61,22 +69,24 @@ export function selectModelo(name) {
 /**
  * Alterna o modelo ativo e recarrega se necessário.
  */
-async function handleModeloChange() {
-  const novo = els.modeloSelect.value;
+async function handleModeloChange(): Promise<void> {
+  const novo = (els.modeloSelect as HTMLSelectElement).value;
   if (novo === getModeloName()) {return;}
   showToast(`Trocando para ${novo} — aguarde`, 'warning', 2000);
-  await carregarModelo(novo);
+  await carregarModelo(novo as 'mobilenet' | 'coco-ssd');
 }
 
 /**
  * Manipula a seleção de arquivos via input de upload (arrasta e solta ou clique).
  *
- * @param {Event} e
+ * @param e - Evento de mudança do input de arquivo.
  */
-async function handleFiles(e) {
-  const files = Array.from(e.target.files || []);
+async function handleFiles(e: Event): Promise<void> {
+  const target = e.target as HTMLInputElement | null;
+  const files = Array.from(target?.files || []);
   if (!files.length) {return;}
-  els.areaUpload.classList.add('hidden');
+  const areaUpload = els.areaUpload as HTMLElement;
+  areaUpload.classList.add('hidden');
 
   for (const file of files) {
     if (!file.type.startsWith('image/')) {
@@ -92,20 +102,28 @@ async function handleFiles(e) {
     const imgUrl = URL.createObjectURL(compressed);
     await processarImagemUrl(imgUrl, file.name);
     URL.revokeObjectURL(imgUrl);
+
+    if (isModoEducativo() && getModeloName() === 'mobilenet') {
+      const modelo = getModelo();
+      if (modelo) {
+        renderizarAtivacoes(
+          els.imagemPreview as HTMLImageElement,
+          modelo,
+        );
+      }
+    }
   }
 
-  e.target.value = '';
+  if (target) {target.value = '';}
   if (files.length > 1) {showToast(`${files.length} imagens analisadas`, 'success');}
 }
 
 /**
  * Baixa a imagem em preview (resultado da classificação).
  */
-function baixarResultado() {
-  const src = els.imagemPreview.src;
-  if (!src || src.startsWith('data:') === false && !src.includes('blob')) {
-    // ainda permite tentar baixar qualquer src válido
-  }
+function baixarResultado(): void {
+  const imagemPreview = els.imagemPreview as HTMLImageElement;
+  const src = imagemPreview.src;
   const link = document.createElement('a');
   link.href = src;
   link.download = 'classificacao-ia.jpg';
@@ -117,18 +135,21 @@ function baixarResultado() {
 /**
  * Compartilha o resultado via Web Share API (arquivo ou fallback de URL).
  */
-async function compartilharResultado() {
+async function compartilharResultado(): Promise<void> {
   if (!navigator.share) {
     showToast('Seu navegador não suporta compartilhamento', 'warning');
     return;
   }
 
   const topResult = ultimoResultado.length
-    ? traduzir(ultimoResultado[0].className ?? ultimoResultado[0].class ?? 'minha imagem')
+    ? traduzir(
+        ultimoResultado[0].className ?? 'minha imagem',
+      )
     : 'minha imagem';
 
   try {
-    const response = await fetch(els.imagemPreview.src);
+    const imagemPreview = els.imagemPreview as HTMLImageElement;
+    const response = await fetch(imagemPreview.src);
     const blob = await response.blob();
     const file = new File([blob], 'classificacao-ia.jpg', { type: blob.type });
 
@@ -146,8 +167,8 @@ async function compartilharResultado() {
       });
     }
   } catch (err) {
-    if (err.name !== 'AbortError') {
-      showToast(`Compartilhamento falhou: ${err.message}`, 'error');
+    if ((err as Error).name !== 'AbortError') {
+      showToast(`Compartilhamento falhou: ${(err as Error).message}`, 'error');
     }
   }
 }
@@ -155,13 +176,16 @@ async function compartilharResultado() {
 /**
  * Copia o texto do resultado principal para a área de transferência.
  */
-function copiarResultado() {
+function copiarResultado(): void {
   if (!ultimoResultado.length) {
     showToast('Nenhum resultado para copiar', 'warning');
     return;
   }
   const texto = ultimoResultado
-    .map((r, i) => `${i + 1}. ${traduzir(r.className ?? r.class ?? '')} — ${Math.round(((r.probability ?? r.score ?? 0) * 100))}%`)
+    .map(
+      (r, i) =>
+        `${i + 1}. ${traduzir(r.className)} — ${Math.round((r.probability ?? 0) * 100)}%`,
+    )
     .join('\n');
   copiarParaClipboard(texto).then((ok) => {
     showToast(ok ? 'Resultado copiado!' : 'Não foi possível copiar', ok ? 'success' : 'error');
@@ -171,39 +195,50 @@ function copiarResultado() {
 /**
  * Limpa a análise atual (preview, resultado, câmera).
  */
-function limparAnaliseAtual() {
-  els.imagemPreview.classList.add('hidden');
-  els.videoPreview.classList.add('hidden');
-  els.bboxCanvas.classList.add('hidden');
-  els.imagemPreview.src = '';
+function limparAnaliseAtual(): void {
+  const imagemPreview = els.imagemPreview as HTMLImageElement;
+  const videoPreview = els.videoPreview as HTMLVideoElement;
+  const bboxCanvas = els.bboxCanvas as HTMLCanvasElement;
+  imagemPreview.classList.add('hidden');
+  videoPreview.classList.add('hidden');
+  bboxCanvas.classList.add('hidden');
+  imagemPreview.src = '';
   pararCamera();
-  els.resultado.innerHTML = '<div class="resultado-empty">// aguardando análise</div>';
-  els.acoesResultado.classList.add('hidden');
+  limparAtivacoes();
+  const resultado = els.resultado as HTMLElement;
+  resultado.innerHTML = '<div class="resultado-empty">// aguardando análise</div>';
+  const acoesResultado = els.acoesResultado as HTMLElement;
+  acoesResultado.classList.add('hidden');
   ultimoResultado = [];
 }
 
 /**
  * Configura todos os ouvintes de evento da aplicação.
  */
-function configurarOuvintes() {
+function configurarOuvintes(): void {
   // Seleção de modelo (cards)
   document.querySelectorAll('.modelo-card').forEach((card) => {
     card.addEventListener('click', () => {
       const name = card.getAttribute('data-model');
-      if (name) {selectModelo(name);}
+      if (name === 'mobilenet' || name === 'coco-ssd') {
+        selectModelo(name);
+      }
     });
   });
 
   // Troca de modelo via <select>
-  els.modeloSelect.addEventListener('change', handleModeloChange);
+  (els.modeloSelect as HTMLSelectElement).addEventListener('change', handleModeloChange);
 
   // Upload / drag & drop
-  els.uploadInput.addEventListener('change', handleFiles);
-  els.btnUpload.addEventListener('click', () => {
-    els.areaUpload.classList.remove('hidden');
+  const uploadInput = els.uploadInput as HTMLInputElement;
+  uploadInput.addEventListener('change', handleFiles);
+  const btnUpload = els.btnUpload as HTMLButtonElement;
+  btnUpload.addEventListener('click', () => {
+    const areaUpload = els.areaUpload as HTMLElement;
+    areaUpload.classList.remove('hidden');
   });
 
-  const areaUpload = els.areaUpload;
+  const areaUpload = els.areaUpload as HTMLElement;
   areaUpload.addEventListener('dragover', (e) => {
     e.preventDefault();
     areaUpload.classList.add('dragover');
@@ -214,24 +249,32 @@ function configurarOuvintes() {
   areaUpload.addEventListener('drop', (e) => {
     e.preventDefault();
     areaUpload.classList.remove('dragover');
+    if (!e.dataTransfer) {return;}
     const files = Array.from(e.dataTransfer.files).filter((f) =>
       f.type.startsWith('image/'),
     );
     if (files.length) {
-      handleFiles({ target: { files } });
+      handleFiles({ target: { files } } as unknown as Event);
     }
   });
 
   // Câmera
-  els.btnWebcam.addEventListener('click', startWebcam);
-  els.btnCapturar.addEventListener('click', capturarFoto);
-  els.btnParar.addEventListener('click', pararCamera);
-  els.btnTrocarCamera.addEventListener('click', trocarCamera);
+  const btnWebcam = els.btnWebcam as HTMLButtonElement;
+  btnWebcam.addEventListener('click', () => startWebcam());
+  const btnCapturar = els.btnCapturar as HTMLButtonElement;
+  btnCapturar.addEventListener('click', capturarFoto);
+  const btnParar = els.btnParar as HTMLButtonElement;
+  btnParar.addEventListener('click', pararCamera);
+  const btnTrocarCamera = els.btnTrocarCamera as HTMLButtonElement;
+  btnTrocarCamera.addEventListener('click', trocarCamera);
 
   // Ações do resultado
-  els.btnLimpar.addEventListener('click', limparAnaliseAtual);
-  els.btnDownload.addEventListener('click', baixarResultado);
-  els.btnCompartilhar.addEventListener('click', compartilharResultado);
+  const btnLimpar = els.btnLimpar as HTMLButtonElement;
+  btnLimpar.addEventListener('click', limparAnaliseAtual);
+  const btnDownload = els.btnDownload as HTMLButtonElement;
+  btnDownload.addEventListener('click', baixarResultado);
+  const btnCompartilhar = els.btnCompartilhar as HTMLButtonElement;
+  btnCompartilhar.addEventListener('click', compartilharResultado);
   const btnCopiar = document.getElementById('btn-copiar-resultado');
   if (btnCopiar) {
     btnCopiar.addEventListener('click', copiarResultado);
@@ -258,8 +301,10 @@ function configurarOuvintes() {
   }
 
   // Limite de confiança
-  els.confThreshold.addEventListener('input', function () {
-    els.confThresholdValue.textContent = `${this.value}%`;
+  const confThreshold = els.confThreshold as HTMLInputElement;
+  confThreshold.addEventListener('input', function () {
+    const confThresholdValue = els.confThresholdValue as HTMLElement;
+    confThresholdValue.textContent = `${this.value}%`;
     localStorage.setItem('ia_conf_threshold', this.value);
     if (ultimoResultado.length) {
       desenharResultados(ultimoResultado);
@@ -269,20 +314,23 @@ function configurarOuvintes() {
     }
   });
   const savedThreshold = localStorage.getItem('ia_conf_threshold');
-  if (savedThreshold !== null && els.confThreshold) {
-    els.confThreshold.value = savedThreshold;
-    els.confThresholdValue.textContent = `${savedThreshold}%`;
+  if (savedThreshold !== null && confThreshold) {
+    confThreshold.value = savedThreshold;
+    const confThresholdValue = els.confThresholdValue as HTMLElement;
+    confThresholdValue.textContent = `${savedThreshold}%`;
   }
 
   // Histórico
-  els.btnLimparHistorico.addEventListener('click', () => {
+  const btnLimparHistorico = els.btnLimparHistorico as HTMLButtonElement;
+  btnLimparHistorico.addEventListener('click', () => {
     mostrarModalConfirmacao(() => {
       limparHistorico();
       renderHistoricoUI();
       showToast('Histórico limpo');
     });
   });
-  els.btnExportHistorico.addEventListener('click', () => {
+  const btnExportHistorico = els.btnExportHistorico as HTMLButtonElement;
+  btnExportHistorico.addEventListener('click', () => {
     const blob = exportarHistoricoBlob();
     if (!blob) {
       showToast('Nenhum histórico para exportar', 'warning');
@@ -300,24 +348,32 @@ function configurarOuvintes() {
   });
 
   // Tema
-  els.themeToggle.addEventListener('click', toggleTheme);
+  const themeToggle = els.themeToggle as HTMLButtonElement;
+  themeToggle.addEventListener('click', toggleTheme);
 
   // SW atualização
-  els.btnSwUpdate.addEventListener('click', aplicarAtualizacaoSW);
+  const btnSwUpdate = els.btnSwUpdate as HTMLButtonElement;
+  btnSwUpdate.addEventListener('click', aplicarAtualizacaoSW);
 
   // Atalhos de teclado
   document.addEventListener('keydown', (e) => {
     // Ignora se o usuário está digitando em um input
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')
+    ) {
       return;
     }
     if (e.key === 'Escape') {
       limparAnaliseAtual();
       pararAnaliseTempoReal();
     } else if (e.key === 'c' || e.key === 'C') {
-      // Ativa/desativa câmera (se não estiver analisando em tempo real)
-      if (els.btnWebcam && !els.btnWebcam.disabled) {
-        if (streamAtivo()) {
+      // Ativa/desativa câmera
+      const btnWebcam = els.btnWebcam as HTMLButtonElement;
+      if (!btnWebcam.disabled) {
+        const videoPreview = els.videoPreview as HTMLVideoElement;
+        if (videoPreview.srcObject) {
           pararCamera();
         } else {
           startWebcam();
@@ -335,14 +391,16 @@ function configurarOuvintes() {
   });
 }
 
-const streamAtivo = () => !!document.getElementById('video-preview').srcObject;
-
+/**
 /**
  * Inicialização da aplicação.
  */
-async function init() {
+async function init(): Promise<void> {
   // Tema inicial
   checkInitialTheme();
+
+  // Modo educativo
+  initModoEducativo();
 
   // Ouvintes
   configurarOuvintes();
@@ -351,9 +409,11 @@ async function init() {
   try {
     await carregarModelo('mobilenet');
   } catch (err) {
-    showToast(`Erro ao carregar modelo: ${err.message}`, 'error');
-    els.statusModelo.className = 'status-error';
-    els.statusModeloText.textContent = 'Erro ao carregar modelo';
+    showToast(`Erro ao carregar modelo: ${(err as Error).message}`, 'error');
+    const statusModelo = els.statusModelo as HTMLElement;
+    const statusModeloText = els.statusModeloText as HTMLElement;
+    statusModelo.className = 'status-error';
+    statusModeloText.textContent = 'Erro ao carregar modelo';
   }
 
   // Histórico inicial
@@ -364,8 +424,9 @@ async function init() {
   ouvirAtualizacaoSW();
 }
 
-// Expõe selectModelo no escopo global para compatibilidade com qualquer
-// referência inline remanescente no HTML (boa prática de transição).
-window.selectModelo = selectModelo;
+// Expõe selectModelo no escopo global para compatibilidade
+// com qualquer referência inline remanescente no HTML.
+(window as unknown as { selectModelo?: typeof selectModelo }).selectModelo =
+  selectModelo;
 
 init();

@@ -3,45 +3,50 @@
  * de foto e classificação em tempo real dos frames do vídeo.
  */
 
-import { els, showToast, renderHistoricoUI } from './ui.js';
-import { getModeloName } from './models.js';
-import { salvarHistoricoEntry } from './history.js';
+import { els, showToast } from './ui.ts';
+import { getModelo, getModeloName } from './models.ts';
+import {
+  isModoEducativo,
+  renderizarAtivacoes,
+} from './educational.ts';
 import {
   classificarElemento,
   desenharResultados,
   desenharBoundingBoxes,
   waitForImageLoad,
-} from './classifier.js';
+} from './classifier.ts';
+import { salvarHistoricoEntry } from './history.ts';
+import { renderHistoricoUI } from './ui.ts';
 
-let stream = null;
-let currentCameraDeviceId = null;
+let stream: MediaStream | null = null;
+let currentCameraDeviceId: string | null = null;
 let analisandoTempoReal = false;
-let animationFrameId = null;
+let animationFrameId: number | null = null;
 
 /**
  * Inicializa a câmera com o dispositivo padrão (ou o especificado).
  *
- * @param {string|null} deviceId
+ * @param deviceId - ID do dispositivo de câmera.
  */
-export async function startWebcam(deviceId = null) {
+export async function startWebcam(deviceId: string | null = null): Promise<void> {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoDevices = devices.filter((d) => d.kind === 'videoinput');
-    currentCameraDeviceId = deviceId || (videoDevices.length
-      ? videoDevices[0].deviceId
-      : null);
+    currentCameraDeviceId =
+      deviceId ||
+      (videoDevices.length ? videoDevices[0].deviceId : null);
     await abrirCamera(currentCameraDeviceId);
   } catch (err) {
-    showToast(`Erro na câmera: ${err.message}`, 'error');
+    showToast(`Erro na câmera: ${(err as Error).message}`, 'error');
   }
 }
 
 /**
- * Abre o stream de vídeo e exibe no elemento <video>.
+ * Abre o stream de vídeo e exibe no elemento .
  *
- * @param {string|null} deviceId
+ * @param deviceId - ID do dispositivo de câmera.
  */
-export async function abrirCamera(deviceId) {
+export async function abrirCamera(deviceId: string | null): Promise<void> {
   pararCamera();
   const constraints = {
     audio: false,
@@ -50,32 +55,38 @@ export async function abrirCamera(deviceId) {
       : { facingMode: 'environment' },
   };
 
-  stream = await navigator.mediaDevices.getUserMedia(constraints);
-  els.videoPreview.srcObject = stream;
-  els.videoPreview.classList.remove('hidden');
-  els.imagemPreview.classList.add('hidden');
-  els.bboxCanvas.classList.add('hidden');
-  document.getElementById('camera-controls').classList.remove('hidden');
+  stream = await navigator.mediaDevices.getUserMedia(constraints as MediaStreamConstraints);
+  const videoPreview = els.videoPreview as HTMLVideoElement;
+  videoPreview.srcObject = stream;
+  videoPreview.classList.remove('hidden');
+  const imagemPreview = els.imagemPreview as HTMLImageElement;
+  imagemPreview.classList.add('hidden');
+  const bboxCanvas = els.bboxCanvas as HTMLCanvasElement;
+  bboxCanvas.classList.add('hidden');
+  const cameraControls = document.getElementById('camera-controls');
+  if (cameraControls) {cameraControls.classList.remove('hidden');}
 }
 
 /**
  * Para o stream da câmera e limpa o preview.
  */
-export function pararCamera() {
+export function pararCamera(): void {
   if (stream) {
     stream.getTracks().forEach((track) => track.stop());
     stream = null;
   }
   pararAnaliseTempoReal();
-  els.videoPreview.srcObject = null;
-  els.videoPreview.classList.add('hidden');
-  document.getElementById('camera-controls').classList.add('hidden');
+  const videoPreview = els.videoPreview as HTMLVideoElement;
+  videoPreview.srcObject = null;
+  videoPreview.classList.add('hidden');
+  const cameraControls = document.getElementById('camera-controls');
+  if (cameraControls) {cameraControls.classList.add('hidden');}
 }
 
 /**
  * Troca para a próxima câmera disponível.
  */
-export async function trocarCamera() {
+export async function trocarCamera(): Promise<void> {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoDevices = devices.filter((d) => d.kind === 'videoinput');
@@ -95,27 +106,33 @@ export async function trocarCamera() {
 /**
  * Captura uma foto do frame atual da câmera e classifica.
  */
-export async function capturarFoto() {
-  if (!els.videoPreview || !stream) {
+export async function capturarFoto(): Promise<void> {
+  const videoPreview = els.videoPreview as HTMLVideoElement;
+  if (!videoPreview || !stream) {
     showToast('Câmera não ativa', 'warning');
     return;
   }
 
-  const video = els.videoPreview;
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  canvas.width = videoPreview.videoWidth;
+  canvas.height = videoPreview.videoHeight;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  if (!ctx) {
+    showToast('Erro ao criar canvas de captura', 'error');
+    return;
+  }
+  ctx.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
 
   const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-  els.imagemPreview.src = dataUrl;
-  els.imagemPreview.classList.remove('hidden');
-  els.videoPreview.classList.add('hidden');
-  els.bboxCanvas.classList.add('hidden');
+  const imagemPreview = els.imagemPreview as HTMLImageElement;
+  imagemPreview.src = dataUrl;
+  imagemPreview.classList.remove('hidden');
+  videoPreview.classList.add('hidden');
+  const bboxCanvas = els.bboxCanvas as HTMLCanvasElement;
+  bboxCanvas.classList.add('hidden');
 
-  await waitForImageLoad(els.imagemPreview);
-  const results = await classificarElemento(els.imagemPreview);
+  await waitForImageLoad(imagemPreview);
+  const results = await classificarElemento(imagemPreview);
   desenharResultados(results);
   if (getModeloName() === 'coco-ssd') {
     desenharBoundingBoxes(results);
@@ -127,13 +144,22 @@ export async function capturarFoto() {
     date: new Date().toISOString(),
   });
   renderHistoricoUI();
+
+  if (isModoEducativo() && getModeloName() === 'mobilenet') {
+    const modelo = getModelo();
+    if (modelo) {
+      renderizarAtivacoes(
+        els.imagemPreview as HTMLImageElement,
+        modelo,
+      );
+    }
+  }
 }
 
 /**
  * Inicia a classificação contínua dos frames da câmera (tempo real).
- * Classifica a cada intervalo para não travar a UI.
  */
-export function iniciarAnaliseTempoReal() {
+export function iniciarAnaliseTempoReal(): void {
   if (analisandoTempoReal || !stream) {return;}
   analisandoTempoReal = true;
   loopAnaliseTempoReal();
@@ -142,7 +168,7 @@ export function iniciarAnaliseTempoReal() {
 /**
  * Para a classificação contínua da câmera.
  */
-export function pararAnaliseTempoReal() {
+export function pararAnaliseTempoReal(): void {
   analisandoTempoReal = false;
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
@@ -152,19 +178,18 @@ export function pararAnaliseTempoReal() {
 
 /**
  * Retorna se a análise em tempo real está ativa.
- * @returns {boolean}
  */
-export function isAnalisandoTempoReal() {
+export function isAnalisandoTempoReal(): boolean {
   return analisandoTempoReal;
 }
 
 /**
  * Loop de classificação de frames (throttled via requestAnimationFrame).
  */
-function loopAnaliseTempoReal() {
+function loopAnaliseTempoReal(): void {
   if (!analisandoTempoReal || !stream) {return;}
 
-  const video = els.videoPreview;
+  const video = els.videoPreview as HTMLVideoElement;
   if (video.readyState >= 2) {
     classificarElemento(video)
       .then((results) => {

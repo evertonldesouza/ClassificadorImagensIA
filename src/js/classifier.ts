@@ -5,25 +5,27 @@
  * incluindo bounding boxes para o COCO-SSD.
  */
 
-import { traduzir } from './i18n.js';
-import { getModelo, getModeloName } from './models.js';
-import { els, showToast, renderHistoricoUI } from './ui.js';
-import { salvarHistoricoEntry } from './history.js';
+import { traduzir } from './i18n.ts';
+import { getModelo, getModeloName } from './models.ts';
+import { els, showToast, renderHistoricoUI } from './ui.ts';
+import { salvarHistoricoEntry } from './history.ts';
+import type { MobileNet } from '@tensorflow-models/mobilenet';
+import type { ObjectDetection } from '@tensorflow-models/coco-ssd';
 
 /** Resultado normalizado de classificação. */
-/** @typedef {Object} Classificacao
- * @property {string} className - Nome da classe.
- * @property {number} probability - Confiança (0 a 1).
- * @property {number[]|undefined} bbox - [x, y, w, h] apenas para COCO-SSD.
- */
+export interface Classificacao {
+  className: string;
+  probability: number;
+  bbox?: number[];
+}
 
 /**
- * Aguarda o carregamento completo de um elemento <img>.
+ * Aguarda o carregamento completo de um elemento .
  *
- * @param {HTMLImageElement} imgEl
- * @returns {Promise<void>}
+ * @param imgEl - Elemento de imagem.
+ * @returns Promise que resolve quando a imagem estiver carregada.
  */
-export function waitForImageLoad(imgEl) {
+export function waitForImageLoad(imgEl: HTMLImageElement): Promise<void> {
   return new Promise((resolve, reject) => {
     if (imgEl.complete && imgEl.naturalHeight !== 0) {
       return resolve();
@@ -37,10 +39,10 @@ export function waitForImageLoad(imgEl) {
  * Compacta uma imagem antes da classificação, reduzindo tamanho e peso
  * sem prejudicar a precisão do modelo.
  *
- * @param {File} file - Arquivo de imagem original.
- * @returns {Promise<Blob>} Blob compactado (ou o arquivo original se já for pequeno).
+ * @param file - Arquivo de imagem original.
+ * @returns Blob compactado (ou o arquivo original se já for pequeno).
  */
-export function comprimirImagem(file) {
+export function comprimirImagem(file: File): Promise<Blob> {
   return new Promise((resolve) => {
     if (file.size < 1.5 * 1024 * 1024) {
       resolve(file);
@@ -63,6 +65,11 @@ export function comprimirImagem(file) {
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        resolve(file);
+        return;
+      }
       ctx.drawImage(img, 0, 0, w, h);
       canvas.toBlob(
         (blob) => {
@@ -84,10 +91,12 @@ export function comprimirImagem(file) {
 /**
  * Classifica um elemento DOM (imagem ou vídeo) usando o modelo ativo.
  *
- * @param {HTMLImageElement|HTMLVideoElement} el
- * @returns {Promise<Classificacao[]>}
+ * @param el - Elemento de imagem ou vídeo.
+ * @returns Array de classificações normalizadas.
  */
-export async function classificarElemento(el) {
+export async function classificarElemento(
+  el: HTMLImageElement | HTMLVideoElement,
+): Promise<Classificacao[]> {
   const modelo = getModelo();
   if (!modelo) {
     showToast('Modelo não carregado', 'error');
@@ -95,8 +104,8 @@ export async function classificarElemento(el) {
   }
 
   try {
-    if (getModeloName() === 'coco-ssd' && modelo.detect) {
-      const predictions = await modelo.detect(el);
+    if (getModeloName() === 'coco-ssd' && modelo && 'detect' in modelo) {
+      const predictions = await (modelo as ObjectDetection).detect(el);
       return predictions.map((p) => ({
         className: p.class,
         probability: p.score,
@@ -104,13 +113,17 @@ export async function classificarElemento(el) {
       }));
     }
 
-    const predictions = await modelo.classify(el);
-    return predictions.map((p) => ({
-      className: p.className,
-      probability: p.probability,
-    }));
+    if (modelo && 'classify' in modelo) {
+      const predictions = await (modelo as MobileNet).classify(el);
+      return predictions.map((p) => ({
+        className: p.className,
+        probability: p.probability,
+      }));
+    }
+
+    return [];
   } catch (err) {
-    showToast(`Erro na classificação: ${err.message}`, 'error');
+    showToast(`Erro na classificação: ${(err as Error).message}`, 'error');
     return [];
   }
 }
@@ -118,15 +131,17 @@ export async function classificarElemento(el) {
 /**
  * Renderiza os resultados de classificação como barras de confiança.
  *
- * @param {Classificacao[]} results
+ * @param results - Resultados de classificação.
  */
-export function desenharResultados(results) {
-  const { resultado, acoesResultado } = els;
+export function desenharResultados(results: Classificacao[]): void {
+  const resultado = els.resultado as HTMLElement;
+  const acoesResultado = els.acoesResultado as HTMLElement;
+  const confThreshold = els.confThreshold as HTMLInputElement;
   resultado.innerHTML = '';
 
-  const threshold = parseInt(els.confThreshold?.value || '0', 10) / 100;
+  const threshold = parseInt(confThreshold?.value || '0', 10) / 100;
   const filtrados = results.filter(
-    (r) => (r.probability ?? r.score ?? 0) >= threshold,
+    (r) => (r.probability ?? 0) >= threshold,
   );
 
   if (!filtrados.length) {
@@ -144,10 +159,10 @@ export function desenharResultados(results) {
 
     const label = document.createElement('div');
     label.className = 'resultado-label';
-    const nomeClasse = r.className || r.class || '';
+    const nomeClasse = r.className || '';
     label.textContent = `${i + 1}. ${traduzir(nomeClasse)}`;
 
-    const pct = (r.probability ?? r.score ?? 0) * 100;
+    const pct = r.probability * 100;
     const badge = document.createElement('span');
     badge.className = `confidence-badge ${
       pct > 75 ? 'confidence-high' : pct > 40 ? 'confidence-medium' : 'confidence-low'
@@ -181,15 +196,15 @@ export function desenharResultados(results) {
 /**
  * Desenha bounding boxes no canvas sobre a imagem (apenas COCO-SSD).
  *
- * @param {Classificacao[]} results
+ * @param results - Resultados de classificação com bbox.
  */
-export function desenharBoundingBoxes(results) {
-  const canvas = els.bboxCanvas;
-  const img = els.imagemPreview;
+export function desenharBoundingBoxes(results: Classificacao[]): void {
+  const canvas = els.bboxCanvas as HTMLCanvasElement;
+  const img = els.imagemPreview as HTMLImageElement;
   if (!img || !img.naturalWidth) {return;}
 
   const rect = img.getBoundingClientRect();
-  const wrapperRect = els.previewWrapper.getBoundingClientRect();
+  const wrapperRect = (els.previewWrapper as HTMLElement).getBoundingClientRect();
   canvas.classList.remove('hidden');
   canvas.width = rect.width;
   canvas.height = rect.height;
@@ -199,13 +214,15 @@ export function desenharBoundingBoxes(results) {
   const scaleX = rect.width / img.naturalWidth;
   const scaleY = rect.height / img.naturalHeight;
   const ctx = canvas.getContext('2d');
+  if (!ctx) {return;}
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const threshold = parseInt(els.confThreshold?.value || '0', 10) / 100;
+  const confThreshold = els.confThreshold as HTMLInputElement;
+  const threshold = parseInt(confThreshold?.value || '0', 10) / 100;
 
   results.forEach((r) => {
-    if ((r.probability ?? r.score ?? 0) < threshold) {return;}
-    const [x, y, w, h] = r.bbox ?? [0, 0, 0, 0];
+    if (r.probability < threshold || !r.bbox) {return;}
+    const [x, y, w, h] = r.bbox;
     const sx = x * scaleX;
     const sy = y * scaleY;
     const sw = w * scaleX;
@@ -217,8 +234,8 @@ export function desenharBoundingBoxes(results) {
     ctx.fillStyle = 'rgba(52, 211, 153, 0.15)';
     ctx.fillRect(sx, sy, sw, sh);
 
-    const label = traduzir(r.className || r.class || '');
-    const pct = Math.round((r.probability ?? r.score ?? 0) * 100);
+    const label = traduzir(r.className);
+    const pct = Math.round(r.probability * 100);
     ctx.font = 'bold 13px DM Sans, sans-serif';
     const metrics = ctx.measureText(`${label} ${pct}%`);
     const padding = 4;
@@ -239,11 +256,13 @@ export function desenharBoundingBoxes(results) {
  * Processa uma imagem a partir de uma URL: exibe preview, classifica,
  * desenha resultados/bounding boxes e salva no histórico.
  *
- * @param {string} url - URL da imagem (Object URL ou data URL).
- * @param {string} nome - Nome da imagem/origem.
+ * @param url - URL da imagem (Object URL ou data URL).
+ * @param nome - Nome da imagem/origem.
  */
-export async function processarImagemUrl(url, nome) {
-  const { imagemPreview, videoPreview, bboxCanvas } = els;
+export async function processarImagemUrl(url: string, nome: string): Promise<void> {
+  const imagemPreview = els.imagemPreview as HTMLImageElement;
+  const videoPreview = els.videoPreview as HTMLVideoElement;
+  const bboxCanvas = els.bboxCanvas as HTMLCanvasElement;
 
   imagemPreview.classList.remove('hidden');
   videoPreview.classList.add('hidden');
@@ -253,7 +272,8 @@ export async function processarImagemUrl(url, nome) {
   await waitForImageLoad(imagemPreview);
 
   // Placeholder de carregamento (skeleton) enquanto classifica.
-  els.resultado.innerHTML =
+  const resultado = els.resultado as HTMLElement;
+  resultado.innerHTML =
     '<div class="skeleton-line skeleton"></div><div class="skeleton-line skeleton" style="width:60%"></div>';
 
   const results = await classificarElemento(imagemPreview);
@@ -264,3 +284,5 @@ export async function processarImagemUrl(url, nome) {
   salvarHistoricoEntry({ nome, results, date: new Date().toISOString() });
   renderHistoricoUI();
 }
+
+

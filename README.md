@@ -10,6 +10,9 @@
 [![Vitest](https://img.shields.io/badge/Vitest-Testing-7EAD33?logo=vitest)](https://vitest.dev/)
 [![ESLint](https://img.shields.io/badge/ESLint-Linting-4B32C3?logo=eslint)](https://eslint.org/)
 [![Prettier](https://img.shields.io/badge/Prettier-Code%20formatter-F7B93E?logo=prettier)](https://prettier.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Playwright](https://img.shields.io/badge/Playwright-E2E%20Testing-24AD3D?logo=playwright)](https://playwright.dev/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
 > Classificador de imagens e detector de objetos com **inteligência artificial executada 100% no navegador** (client-side), sem servidor e sem upload externo. Construído com **TensorFlow.js** (MobileNet + COCO-SSD), empacotado com **Vite**, testado com **Vitest** e entregue como **PWA offline-first**.
 
@@ -28,6 +31,9 @@
 | **📊 Histórico** | Histórico de análises salvo localmente, estatísticas (total + mais frequente) e exportação em JSON. |
 | **🎨 UX / UI** | Tema claro/escuro com preferência persistida, toasts, skeletons de carregamento, modal de confirmação, atalhos de teclado. |
 | **📱 PWA** | Funciona **offline**, instala como app no celular, service worker com cache de modelos e CDNs. |
+| **🎓 Modo educativo** | Visualização de ativações intermediárias do MobileNet ("Como a IA pensa") — camadas iniciais detectam bordas, camadas profundas reconhecem objetos. |
+| **🐳 Docker** | Dockerfile multi-stage + docker-compose para deploy em qualquer ambiente com um comando. |
+| **🧪 E2E** | Testes end-to-end com Playwright (carregamento, tema, modelos, câmera, teclado, upload). |
 | **♿ Acessibilidade** | Navegação por teclado, `aria-label`, foco visível, redução de movimento (`prefers-reduced-motion`). |
 
 ### Atalhos de teclado
@@ -61,14 +67,19 @@ O código foi modularizado para facilitar manutenção, testes e leitura:
 
 ```
 src/js/
-├── i18n.js        # Tradução de rótulos (EN → PT) com cache em localStorage
-├── models.js      # Carregamento e cache de modelos (MobileNet / COCO-SSD)
-├── classifier.js  # Classificação, detecção, bounding boxes e compressão
-├── camera.js      # Controle da câmera e classificação em tempo real
-├── history.js     # Histórico de análises e estatísticas (localStorage)
-├── ui.js          # Camada de DOM: toasts, tema, modal, renderização
-├── sw.js          # Registro e atualização do Service Worker (PWA)
-└── main.js        # Ponto de entrada e wiring de eventos/atalhos
+├── i18n.ts         # Tradução de rótulos (EN → PT) com cache em localStorage
+├── models.ts       # Carregamento e cache de modelos (MobileNet / COCO-SSD)
+├── classifier.ts   # Classificação, detecção, bounding boxes e compressão
+├── camera.ts       # Controle da câmera e classificação em tempo real
+├── history.ts      # Histórico de análises e estatísticas (localStorage)
+├── ui.ts           # Camada de DOM: toasts, tema, modal, renderização
+├── sw.ts           # Registro e atualização do Service Worker (PWA)
+├── educational.ts  # Modo educativo: visualização de ativações da IA
+└── main.ts         # Ponto de entrada e wiring de eventos/atalhos
+├── src/__e2e__/    # Testes end-to-end (Playwright)
+├── Dockerfile      # Build multi-stage para produção
+├── docker-compose.yml  # Orquestração com nginx
+└── docker/nginx.conf   # Configuração do nginx (SPA, cache, segurança)
 ```
 
 ### Fluxo de uma classificação
@@ -124,8 +135,14 @@ npm run preview
 | `npm run preview` | Serve o build de produção localmente |
 | `npm run lint` | Executa ESLint nos fontes |
 | `npm run lint:fix` | Corrige problemas de lint automaticamente |
+| `npm run type-check` | Verificação de tipos TypeScript |
 | `npm run format` | Formata código com Prettier |
 | `npm run test` | Executa testes unitários (Vitest) |
+| `npm run e2e` | Testes E2E (Playwright) |
+| `npm run e2e:install-browsers` | Instala navegadores do Playwright |
+| `npm run docker:build` | Constrói a imagem Docker |
+| `npm run docker:run` | Executa o contêiner Docker |
+| `npm run docker:run` | Executa o contêiner Docker |
 
 ---
 
@@ -177,16 +194,19 @@ ClassificadorImagensIA/
 - ✅ Testes unitários com Vitest (módulos puros: i18n, histórico)
 - ✅ Build de produção com Vite (bundling, minificação, sourcemaps)
 - ✅ GitHub Actions: lint → testes → build em todo push/PR
-- ✅ Código modularizado (ES Modules) com documentação JSDoc
-- ✅ Sem dependência de CDN em tempo de execução (modelos empacotados)
+- ✅ Código modularizado (ES Modules + TypeScript) com documentação JSDoc
+- ✅ Testes unitários (Vitest) + testes E2E (Playwright)
+- ✅ Sem dependência de CDN em tempo de execução (modelos empacotados via Vite)
+- ✅ Dockerfile multi-stage para deploy em qualquer ambiente
 
 ---
 
 ## 🚀 Roadmap
 
-- [ ] Testes de integração (end-to-end com Playwright)
+- [x] Testes de integração (end-to-end com Playwright)
+- [x] Modo educativo "Como a IA pensa" (visualização de ativações/camadas)
+- [x] Dockerfile multi-stage para deploy em qualquer ambiente
 - [ ] Suporte a modelos customizados via Teachable Machine
-- [ ] Modo educativo "Como a IA pensa" (visualização de ativações/camadas)
 - [ ] Comparação lado a lado de modelos (MobileNet vs COCO-SSD)
 - [ ] Salvamento de resultado como imagem com anotações queimadas
 
