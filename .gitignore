@@ -30,6 +30,8 @@ pnpm-debug.log*
 # Testing
 coverage/
 .vitest/
+playwright-report/
+test-results/
 
 # OS
 *.log
