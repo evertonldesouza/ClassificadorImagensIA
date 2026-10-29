@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { classificarElemento, comprimirImagem } from '../js/classifier.ts';
 
 // --- Mock do localStorage ---
@@ -22,14 +22,10 @@ beforeEach(() => {
     writable: true,
   });
   Object.keys(store).forEach((k) => delete store[k]);
-
-  (globalThis.URL as Record<string, unknown>).createObjectURL = vi.fn(() => 'mocked-url');
-  (globalThis.URL as Record<string, unknown>).revokeObjectURL = vi.fn(() => undefined);
 });
 
 afterEach(() => {
   Object.keys(store).forEach((k) => delete store[k]);
-  vi.restoreAllMocks();
 });
 
 describe('comprimirImagem', () => {
